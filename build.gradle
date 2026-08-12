@@ -1,0 +1,79 @@
+import java.text.SimpleDateFormat
+
+buildscript {
+    repositories {
+        maven { url = "https://plugins.gradle.org/m2/" }
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://maven.parchmentmc.org' }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true
+        classpath 'org.parchmentmc:librarian:1.+'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.parchmentmc.librarian.forgegradle'
+apply plugin: 'eclipse'
+apply plugin: 'java'
+
+version = "1.0.0"
+group = "xuanmo.arcartx_suite_mod"
+archivesBaseName = "ArcartX-Suite-Mod"
+
+// CI 环境提供 Java 17（temurin-17）
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    // 使用 parchment 反混淆变量名（与 TACZ 一致）
+    mappings channel: 'parchment', version: '2023.08.20-1.20.1'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                arcartx_suite_mod {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.3.0'
+
+    // TACZ - compileOnly，运行时由整合包提供
+    compileOnly name: 'tacz-1.20.1-1.1.8-hotfix-all'
+
+    // Apotheosis - compileOnly，运行时由整合包提供
+    compileOnly name: 'Apotheosis-1.20.1-7.4.8'
+
+    // AMR - compileOnly
+    compileOnly name: 'apotheosis_modern_ragnarok-forge-1.20.1-tacz1.1.8-7.0.0'
+}
+
+jar {
+    manifest {
+        attributes([
+            "Specification-Title"     : "arcartx_suite_mod",
+            "Specification-Vendor"     : "xuanmo",
+            "Specification-Version"    : "1",
+            "Implementation-Title"     : project.name,
+            "Implementation-Version"   : project.jar.archiveVersion,
+            "Implementation-Vendor"    : "xuanmo",
+            "Implementation-Timestamp" : new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}

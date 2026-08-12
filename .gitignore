@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+run/
+out/
+*.class
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时下载
+jdk17.zip
+
+# 编译依赖 jar（通过 GitHub Release "deps" 提供，CI 中下载）
+libs/
+
+# 本地缓存
+*.part
+*.lck
