@@ -3,9 +3,8 @@ package xuanmo.arcartx_suite_mod.client;
 import java.util.ArrayList;
 import java.util.List;
 import com.mojang.datafixers.util.Either;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
@@ -83,13 +82,13 @@ public class TooltipEventListener {
         String descId = stack.getDescriptionId();
         if (!descId.contains("tacz") && !descId.contains("apotheosis")) return;
 
-        List<Either<TooltipComponent, Component>> elements = event.getTooltipElements();
+        List<Either<FormattedText, TooltipComponent>> elements = event.getTooltipElements();
         System.out.println("[AXS-DEBUG] GatherComponents for " + descId + " (" + elements.size() + " elements):");
         for (int i = 0; i < elements.size(); i++) {
-            Either<TooltipComponent, Component> e = elements.get(i);
+            Either<FormattedText, TooltipComponent> e = elements.get(i);
             String info = e.map(
-                tc -> "IMAGE/TOOLTIP_COMPONENT type=" + tc.getClass().getSimpleName(),
-                comp -> "TEXT: " + comp.getString() + " | type=" + comp.getContents().getClass().getSimpleName()
+                ft -> "TEXT: " + ft.getString() + " | ftType=" + ft.getClass().getSimpleName(),
+                tc -> "IMAGE/TOOLTIP_COMPONENT type=" + tc.getClass().getSimpleName()
             );
             System.out.println("[AXS-DEBUG]   [" + i + "] " + info);
         }
