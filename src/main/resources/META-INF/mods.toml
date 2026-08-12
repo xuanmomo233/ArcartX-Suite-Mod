@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="arcartx_suite_mod"
-version="1.0.0"
+version="1.1.0"
 displayName="ArcartX Suite Mod"
 description='''
 ArcartX Suite 客户端辅助 mod，为 ArcartX 自定义 UI 提供 TACZ 枪械和 Apotheosis 神化词条的 tooltip 桥接。

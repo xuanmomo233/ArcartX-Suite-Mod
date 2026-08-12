@@ -47,7 +47,7 @@ public class TooltipEventListener {
 
     /**
      * 采集 tooltip 文本行和结构化数据，发送给服务端。
-     * 每次都发送，服务端负责去重缓存。
+     * 客户端内置 2 秒冷却（同一物品指纹），避免每帧发包。
      */
     private static void sendTooltipDataToServer(ItemStack stack, List<Component> tooltip) {
         try {

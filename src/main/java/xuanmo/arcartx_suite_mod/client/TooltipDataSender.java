@@ -2,7 +2,9 @@ package xuanmo.arcartx_suite_mod.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import priv.seventeen.artist.arcartx.common.api.ArcartXClient;
 
 /**
@@ -14,16 +16,30 @@ import priv.seventeen.artist.arcartx.common.api.ArcartXClient;
  * 数据包格式：
  * <pre>
  * packetId: "AXS_TOOLTIP_DATA"
- * data[0]: 物品指纹（类型 ID + NBT hash，用于服务端去重）
- * data[1]: 物品类型 ID（如 "tacz:ak47" 或 "minecraft:diamond_sword"）
+ * data[0]: 物品指纹（物品注册名，如 "tacz:ak47" 或 "minecraft:diamond_sword"）
+ * data[1]: 物品类型 ID（同 data[0]，保留用于扩展）
  * data[2]: tooltip 文本行（JSON 数组字符串，每行一条）
  * data[3]: 结构化数据（JSON 对象字符串，包含数值属性）
  * </pre>
+ * <p>
+ * 指纹格式为 {@code ForgeRegistries.ITEMS.getKey(item).toString()}（即 {@code namespace:path}），
+ * 与服务端 {@code ItemStack.getType().getKey().toString()} 一致，确保缓存能正确匹配。
+ * <p>
+ * 内置 2 秒冷却：同一物品指纹在 2 秒内不会重复发送，避免 ItemTooltipEvent
+ * 每帧触发导致每秒 60 次发包。
  */
 public final class TooltipDataSender {
 
     /** 数据包 ID，与服务端 ClientPacketHandler 约定 */
     public static final String PACKET_ID = "AXS_TOOLTIP_DATA";
+
+    /** 同一物品指纹的发送冷却（毫秒），避免每帧发包 */
+    private static final long COOLDOWN_MILLIS = 2000L;
+
+    /** 上次发送的物品指纹 */
+    private static String lastFingerprint = null;
+    /** 上次发送时间戳 */
+    private static long lastSendTime = 0L;
 
     private TooltipDataSender() {}
 
@@ -39,10 +55,20 @@ public final class TooltipDataSender {
         if (textLines == null || textLines.isEmpty()) return;
 
         try {
-            // 构建物品指纹：类型 ID + NBT hash
-            String itemId = stack.getDescriptionId();
-            int nbtHash = stack.hasTag() ? stack.getTag().hashCode() : 0;
-            String fingerprint = itemId + "@" + nbtHash;
+            // 使用 Forge 注册名作为物品指纹（namespace:path 格式），
+            // 与服务端 Bukkit ItemStack.getType().getKey().toString() 一致
+            ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            if (key == null) return;
+            String itemId = key.toString();
+            String fingerprint = itemId;
+
+            // 冷却检查：同一物品指纹在冷却期内跳过发送
+            long now = System.currentTimeMillis();
+            if (fingerprint.equals(lastFingerprint) && now - lastSendTime < COOLDOWN_MILLIS) {
+                return;
+            }
+            lastFingerprint = fingerprint;
+            lastSendTime = now;
 
             // 构建文本行 JSON 数组
             StringBuilder linesJson = new StringBuilder("[");
