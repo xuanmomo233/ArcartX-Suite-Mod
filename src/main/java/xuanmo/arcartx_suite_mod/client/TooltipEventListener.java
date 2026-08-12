@@ -24,6 +24,8 @@ import xuanmo.arcartx_suite_mod.ArcartXSuiteMod;
 @Mod.EventBusSubscriber(value = Dist.CLIENT, modid = ArcartXSuiteMod.MOD_ID)
 public class TooltipEventListener {
 
+    private static final boolean DEBUG = Boolean.getBoolean("axs.tooltip.debug");
+
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
@@ -43,6 +45,23 @@ public class TooltipEventListener {
         // 2. 采集完整 tooltip 文本行（包含 Apotheosis affix + TACZ 枪属性）
         //    发送给服务端，用于聊天预览 Lore 注入和业务逻辑
         sendTooltipDataToServer(stack, tooltip);
+    }
+
+    /**
+     * LOWEST 优先级调试监听器：在所有其他 mod 的监听器执行完后，
+     * 打印最终 tooltip 列表，确认 Apotheosis 的行是否在其中。
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onItemTooltipDebug(ItemTooltipEvent event) {
+        if (!DEBUG) return;
+        ItemStack stack = event.getItemStack();
+        if (stack.isEmpty()) return;
+        List<Component> tooltip = event.getToolTip();
+        System.out.println("[AXS-DEBUG] ItemTooltipEvent final tooltip for " + stack.getDescriptionId() + " (" + tooltip.size() + " lines):");
+        for (int i = 0; i < tooltip.size(); i++) {
+            Component c = tooltip.get(i);
+            System.out.println("[AXS-DEBUG]   [" + i + "] " + c.getString() + " | type=" + c.getContents().getClass().getSimpleName());
+        }
     }
 
     /**
