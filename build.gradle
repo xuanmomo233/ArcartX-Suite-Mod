@@ -62,6 +62,9 @@ dependencies {
 
     // AMR - compileOnly
     compileOnly name: 'apotheosis_modern_ragnarok-forge-1.20.1-tacz1.1.8-7.0.0'
+
+    // ArcartX mod - compileOnly，用于 ArcartXClient.sendPacket API
+    compileOnly name: 'ArcartX-Forge-1.20.1-2.5.36'
 }
 
 jar {

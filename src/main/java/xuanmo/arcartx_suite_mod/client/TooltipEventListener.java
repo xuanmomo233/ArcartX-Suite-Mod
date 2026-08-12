@@ -13,7 +13,7 @@ import xuanmo.arcartx_suite_mod.ArcartXSuiteMod;
 
 /**
  * ItemTooltipEvent 监听器，将 TACZ 枪属性和 Apotheosis affix 的文本行
- * 注入到 {@code event.getToolTip()} 中。
+ * 注入到 {@code event.getToolTip()} 中，同时将数据发送给服务端。
  * <p>
  * 使用 LOW 优先级确保在 Apotheosis 的 HIGH 优先级监听器之后执行，
  * 这样 Apotheosis 已经插入了 affix 描述行，我们只需补充 TACZ 枪属性行。
@@ -32,20 +32,44 @@ public class TooltipEventListener {
         List<Component> tooltip = event.getToolTip();
 
         // 1. TACZ 枪属性注入
-        // TACZ 的枪属性走 TooltipComponent 机制，不在 getToolTip() 中
-        // 需要调用 TACZ API 复刻计算，将文本行添加到 tooltip 列表
         List<Component> taczLines = TaczTooltipCollector.collectTooltipLines(stack);
         if (!taczLines.isEmpty()) {
-            // 找到合适的插入位置：在物品名之后、原版属性之前
-            // ItemTooltipEvent 的 tooltip 列表第 0 个是物品名
-            // 我们在第 1 个位置插入（和 Apotheosis 一样的策略）
             int insertIndex = Math.min(1, tooltip.size());
             for (int i = taczLines.size() - 1; i >= 0; i--) {
                 tooltip.add(insertIndex, taczLines.get(i));
             }
         }
 
-        // 2. Apotheosis affix 行已在 HIGH 优先级被插入，无需额外处理
-        // 但需要确认它们确实在 tooltip 列表中（Apotheosis 的 affixTooltips 方法已处理）
+        // 2. 采集完整 tooltip 文本行（包含 Apotheosis affix + TACZ 枪属性）
+        //    发送给服务端，用于聊天预览 Lore 注入和业务逻辑
+        sendTooltipDataToServer(stack, tooltip);
+    }
+
+    /**
+     * 采集 tooltip 文本行和结构化数据，发送给服务端。
+     * 每次都发送，服务端负责去重缓存。
+     */
+    private static void sendTooltipDataToServer(ItemStack stack, List<Component> tooltip) {
+        try {
+            // 提取所有 tooltip 文本行（纯文本）
+            List<String> textLines = new ArrayList<>(tooltip.size());
+            for (Component component : tooltip) {
+                String text = component.getString();
+                if (text != null && !text.isBlank()) {
+                    textLines.add(text);
+                }
+            }
+
+            // 获取结构化数据（TACZ 枪属性）
+            String structuredData = TaczTooltipCollector.collectStructuredData(stack);
+            if (structuredData == null) {
+                structuredData = "{}";
+            }
+
+            // 发送给服务端
+            TooltipDataSender.send(stack, textLines, structuredData);
+        } catch (Throwable t) {
+            // 静默处理
+        }
     }
 }

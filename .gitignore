@@ -29,3 +29,5 @@ libs/
 # 本地缓存
 *.part
 *.lck
+
+build-artifact/
