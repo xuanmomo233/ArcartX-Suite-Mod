@@ -68,19 +68,33 @@ public class TooltipEventListener {
         }
     }
 
+    /** Apotheosis 是否存在，首次调用时检测，避免重复触发 NoClassDefFoundError */
+    private static volatile boolean apotheosisChecked = false;
+    private static volatile boolean apotheosisAvailable = false;
+
     /**
      * 在 Apotheosis 的 comps 监听器之后执行（LOWEST 优先级），
      * 将 Apotheosis 的 SocketComponent（图像类型）转换为文本行，
      * 以便 ArcartX 的 onTooltipRender 能提取到宝石槽描述。
      * <p>
-     * Apotheosis 不存在时 ApotheosisSocketFix 类加载会失败，
-     * try-catch(Throwable) 安全吞掉 NoClassDefFoundError。
+     * Apotheosis 不存在时跳过，避免每帧重复触发 NoClassDefFoundError。
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onGatherComponents(RenderTooltipEvent.GatherComponents event) {
-        try {
-            ApotheosisSocketFix.convert(event);
-        } catch (Throwable ignored) {}
+        if (!apotheosisChecked) {
+            try {
+                Class.forName("dev.shadowsoffire.apotheosis.adventure.client.SocketTooltipRenderer");
+                apotheosisAvailable = true;
+            } catch (ClassNotFoundException ignored) {
+                apotheosisAvailable = false;
+            }
+            apotheosisChecked = true;
+        }
+        if (apotheosisAvailable) {
+            try {
+                ApotheosisSocketFix.convert(event);
+            } catch (Throwable ignored) {}
+        }
 
         if (DEBUG) {
             ItemStack stack = event.getItemStack();
