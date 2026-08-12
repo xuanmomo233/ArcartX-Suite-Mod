@@ -2,10 +2,13 @@ package xuanmo.arcartx_suite_mod.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -50,42 +53,50 @@ public class TooltipEventListener {
 
     /**
      * LOWEST 优先级调试监听器：在所有其他 mod 的监听器执行完后，
-     * 打印最终 tooltip 列表，包括每行的 Component 结构信息
-     * （siblings、style、font 等），帮助判断哪些行可能被 ArcartX
-     * 的 ClientTextTooltip 转换过滤掉。
+     * 打印最终 tooltip 列表，确认 Apotheosis 的行是否在其中。
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onItemTooltipDebug(ItemTooltipEvent event) {
         if (!DEBUG) return;
         ItemStack stack = event.getItemStack();
         if (stack.isEmpty()) return;
-        // 只记录 TACZ 枪械（避免日志爆炸）
-        String descId = stack.getDescriptionId();
-        if (!descId.contains("tacz")) return;
-
         List<Component> tooltip = event.getToolTip();
-        System.out.println("[AXS-DEBUG] ItemTooltipEvent final tooltip for " + descId + " (" + tooltip.size() + " lines):");
+        System.out.println("[AXS-DEBUG] ItemTooltipEvent final tooltip for " + stack.getDescriptionId() + " (" + tooltip.size() + " lines):");
         for (int i = 0; i < tooltip.size(); i++) {
             Component c = tooltip.get(i);
-            Style style = c.getStyle();
-            String styleInfo = "";
-            if (style.getColor() != null) styleInfo += "color=" + style.getColor().getValue() + " ";
-            if (style.isBold()) styleInfo += "B ";
-            if (style.isItalic()) styleInfo += "I ";
-            if (style.isUnderlined()) styleInfo += "U ";
-            if (style.isStrikethrough()) styleInfo += "S ";
-            if (style.isObfuscated()) styleInfo += "O ";
-            if (style.getFont() != null) styleInfo += "font=" + style.getFont() + " ";
-            // 检查是否有 insertion/clickEvent/hoverEvent
-            if (style.getInsertion() != null) styleInfo += "insertion ";
-            if (style.getClickEvent() != null) styleInfo += "clickEvent ";
-            if (style.getHoverEvent() != null) styleInfo += "hoverEvent ";
+            System.out.println("[AXS-DEBUG]   [" + i + "] " + c.getString() + " | type=" + c.getContents().getClass().getSimpleName());
+        }
+    }
 
-            int siblings = c.getSiblings().size();
-            String contentsType = c.getContents().getClass().getSimpleName();
-            System.out.println("[AXS-DEBUG]   [" + i + "] \"" + c.getString() + "\" | type=" + contentsType
-                + " | siblings=" + siblings
-                + (styleInfo.isEmpty() ? "" : " | style: " + styleInfo.trim()));
+    /**
+     * 在 Apotheosis 的 comps 监听器之后执行（LOWEST 优先级），
+     * 将 Apotheosis 的 SocketComponent（图像类型）转换为文本行，
+     * 以便 ArcartX 的 onTooltipRender 能提取到宝石槽描述。
+     * <p>
+     * Apotheosis 不存在时 ApotheosisSocketFix 类加载会失败，
+     * try-catch(Throwable) 安全吞掉 NoClassDefFoundError。
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onGatherComponents(RenderTooltipEvent.GatherComponents event) {
+        try {
+            ApotheosisSocketFix.convert(event);
+        } catch (Throwable ignored) {}
+
+        if (DEBUG) {
+            ItemStack stack = event.getItemStack();
+            if (stack.isEmpty()) return;
+            String descId = stack.getDescriptionId();
+            if (!descId.contains("tacz") && !descId.contains("apotheosis")) return;
+            List<Either<FormattedText, TooltipComponent>> elements = event.getTooltipElements();
+            System.out.println("[AXS-DEBUG] GatherComponents (after fix) for " + descId + " (" + elements.size() + " elements):");
+            for (int i = 0; i < elements.size(); i++) {
+                Either<FormattedText, TooltipComponent> e = elements.get(i);
+                String info = e.map(
+                    ft -> "TEXT: " + ft.getString() + " | ftType=" + ft.getClass().getSimpleName(),
+                    tc -> "IMAGE/TOOLTIP_COMPONENT type=" + tc.getClass().getSimpleName()
+                );
+                System.out.println("[AXS-DEBUG]   [" + i + "] " + info);
+            }
         }
     }
 
