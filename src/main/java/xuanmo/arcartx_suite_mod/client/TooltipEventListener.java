@@ -2,9 +2,14 @@ package xuanmo.arcartx_suite_mod.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.mojang.datafixers.util.Either;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -61,6 +66,32 @@ public class TooltipEventListener {
         for (int i = 0; i < tooltip.size(); i++) {
             Component c = tooltip.get(i);
             System.out.println("[AXS-DEBUG]   [" + i + "] " + c.getString() + " | type=" + c.getContents().getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * 调试：GatherComponents 事件在 Minecraft 将 Component 列表转换为
+     * ClientTooltipComponent 列表之后、实际渲染之前触发。
+     * 这里可以看到最终的 Either 列表，确认哪些行是文本、哪些是图片。
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onGatherComponentsDebug(RenderTooltipEvent.GatherComponents event) {
+        if (!DEBUG) return;
+        ItemStack stack = event.getItemStack();
+        if (stack.isEmpty()) return;
+        // 只记录有 affix 标记或 TACZ 的物品
+        String descId = stack.getDescriptionId();
+        if (!descId.contains("tacz") && !descId.contains("apotheosis")) return;
+
+        List<Either<TooltipComponent, Component>> elements = event.getTooltipElements();
+        System.out.println("[AXS-DEBUG] GatherComponents for " + descId + " (" + elements.size() + " elements):");
+        for (int i = 0; i < elements.size(); i++) {
+            Either<TooltipComponent, Component> e = elements.get(i);
+            String info = e.map(
+                tc -> "IMAGE/TOOLTIP_COMPONENT type=" + tc.getClass().getSimpleName(),
+                comp -> "TEXT: " + comp.getString() + " | type=" + comp.getContents().getClass().getSimpleName()
+            );
+            System.out.println("[AXS-DEBUG]   [" + i + "] " + info);
         }
     }
 
