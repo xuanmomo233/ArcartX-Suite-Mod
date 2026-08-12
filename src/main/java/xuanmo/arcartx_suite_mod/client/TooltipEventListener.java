@@ -2,13 +2,10 @@ package xuanmo.arcartx_suite_mod.client;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.mojang.datafixers.util.Either;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -53,44 +50,42 @@ public class TooltipEventListener {
 
     /**
      * LOWEST 优先级调试监听器：在所有其他 mod 的监听器执行完后，
-     * 打印最终 tooltip 列表，确认 Apotheosis 的行是否在其中。
+     * 打印最终 tooltip 列表，包括每行的 Component 结构信息
+     * （siblings、style、font 等），帮助判断哪些行可能被 ArcartX
+     * 的 ClientTextTooltip 转换过滤掉。
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onItemTooltipDebug(ItemTooltipEvent event) {
         if (!DEBUG) return;
         ItemStack stack = event.getItemStack();
         if (stack.isEmpty()) return;
+        // 只记录 TACZ 枪械（避免日志爆炸）
+        String descId = stack.getDescriptionId();
+        if (!descId.contains("tacz")) return;
+
         List<Component> tooltip = event.getToolTip();
-        System.out.println("[AXS-DEBUG] ItemTooltipEvent final tooltip for " + stack.getDescriptionId() + " (" + tooltip.size() + " lines):");
+        System.out.println("[AXS-DEBUG] ItemTooltipEvent final tooltip for " + descId + " (" + tooltip.size() + " lines):");
         for (int i = 0; i < tooltip.size(); i++) {
             Component c = tooltip.get(i);
-            System.out.println("[AXS-DEBUG]   [" + i + "] " + c.getString() + " | type=" + c.getContents().getClass().getSimpleName());
-        }
-    }
+            Style style = c.getStyle();
+            String styleInfo = "";
+            if (style.getColor() != null) styleInfo += "color=" + style.getColor().getValue() + " ";
+            if (style.isBold()) styleInfo += "B ";
+            if (style.isItalic()) styleInfo += "I ";
+            if (style.isUnderlined()) styleInfo += "U ";
+            if (style.isStrikethrough()) styleInfo += "S ";
+            if (style.isObfuscated()) styleInfo += "O ";
+            if (style.getFont() != null) styleInfo += "font=" + style.getFont() + " ";
+            // 检查是否有 insertion/clickEvent/hoverEvent
+            if (style.getInsertion() != null) styleInfo += "insertion ";
+            if (style.getClickEvent() != null) styleInfo += "clickEvent ";
+            if (style.getHoverEvent() != null) styleInfo += "hoverEvent ";
 
-    /**
-     * 调试：GatherComponents 事件在 Minecraft 将 Component 列表转换为
-     * ClientTooltipComponent 列表之后、实际渲染之前触发。
-     * 这里可以看到最终的 Either 列表，确认哪些行是文本、哪些是图片。
-     */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onGatherComponentsDebug(RenderTooltipEvent.GatherComponents event) {
-        if (!DEBUG) return;
-        ItemStack stack = event.getItemStack();
-        if (stack.isEmpty()) return;
-        // 只记录有 affix 标记或 TACZ 的物品
-        String descId = stack.getDescriptionId();
-        if (!descId.contains("tacz") && !descId.contains("apotheosis")) return;
-
-        List<Either<FormattedText, TooltipComponent>> elements = event.getTooltipElements();
-        System.out.println("[AXS-DEBUG] GatherComponents for " + descId + " (" + elements.size() + " elements):");
-        for (int i = 0; i < elements.size(); i++) {
-            Either<FormattedText, TooltipComponent> e = elements.get(i);
-            String info = e.map(
-                ft -> "TEXT: " + ft.getString() + " | ftType=" + ft.getClass().getSimpleName(),
-                tc -> "IMAGE/TOOLTIP_COMPONENT type=" + tc.getClass().getSimpleName()
-            );
-            System.out.println("[AXS-DEBUG]   [" + i + "] " + info);
+            int siblings = c.getSiblings().size();
+            String contentsType = c.getContents().getClass().getSimpleName();
+            System.out.println("[AXS-DEBUG]   [" + i + "] \"" + c.getString() + "\" | type=" + contentsType
+                + " | siblings=" + siblings
+                + (styleInfo.isEmpty() ? "" : " | style: " + styleInfo.trim()));
         }
     }
 
