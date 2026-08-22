@@ -50,22 +50,19 @@ public final class TooltipDataSender {
      * @param textLines tooltip 文本行列表
      * @param structuredData 结构化数据 JSON 字符串
      */
-    public static void send(ItemStack stack, List<String> textLines, String structuredData) {
-        if (stack == null || stack.isEmpty()) return;
-        if (textLines == null || textLines.isEmpty()) return;
+    public static boolean send(ItemStack stack, List<String> textLines, String structuredData) {
+        if (stack == null || stack.isEmpty()) return false;
+        if (textLines == null || textLines.isEmpty()) return false;
 
         try {
-            // 使用 Forge 注册名作为物品指纹（namespace:path 格式），
-            // 与服务端 Bukkit ItemStack.getType().getKey().toString() 一致
             ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
-            if (key == null) return;
+            if (key == null) return false;
             String itemId = key.toString();
             String fingerprint = itemId;
 
-            // 冷却检查：同一物品指纹在冷却期内跳过发送
             long now = System.currentTimeMillis();
             if (fingerprint.equals(lastFingerprint) && now - lastSendTime < COOLDOWN_MILLIS) {
-                return;
+                return false;
             }
             lastFingerprint = fingerprint;
             lastSendTime = now;
@@ -85,10 +82,10 @@ public final class TooltipDataSender {
             data.add(linesJson.toString());
             data.add(structuredData != null ? structuredData : "{}");
 
-            // 通过 ArcartX 网络包发送
             ArcartXClient.sendPacket(PACKET_ID, new ArrayList<>(data));
+            return true;
         } catch (Throwable t) {
-            // 静默处理，避免影响游戏
+            return false;
         }
     }
 
